@@ -3,20 +3,40 @@
   "version": "0.1.0",
   "description": "Generate compact local run cards for repositories.",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
+  "bin": {
+    "runcard": "./dist/cli.js"
+  },
   "exports": {
-    ".": "./src/index.js"
+    ".": "./dist/index.js"
   },
   "files": [
-    "src",
+    "dist",
     "README.md"
   ],
   "scripts": {
-    "test": "node --test",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "pretest": "npm run build",
+    "test": "node --test dist/**/*.test.js",
+    "smoke": "node dist/cli.js scan --fixture node-cli --out .tmp/smoke --json .tmp/smoke/run-card.json",
     "package:smoke": "npm pack --dry-run",
-    "release:check": "npm test && npm run package:smoke"
+    "release:check": "npm run check && npm test && npm run smoke && npm run package:smoke"
   },
-  "keywords": [],
+  "keywords": [
+    "cli",
+    "runbook",
+    "automation",
+    "agents",
+    "repository"
+  ],
   "author": "Roger Chappel",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
 }
