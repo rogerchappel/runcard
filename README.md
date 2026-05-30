@@ -1,50 +1,82 @@
 # runcard
 
-Generate compact local run cards for repositories.
+Generate deterministic local run cards for repositories.
 
-## Status
-
-This repository is early-stage. Confirm the current support, release, and
-security posture before using it in production.
+`runcard scan` inspects repository files, normalizes the likely install/check/test/build/smoke/package commands, and writes a compact handoff for humans and coding agents. It does not run project commands during a scan.
 
 ## Install
 
-Replace this section with the generated repository's installation steps.
+```sh
+npm install -g runcard
+```
+
+For local development in this repository:
 
 ```sh
-pnpm install
+npm ci
+npm run build
+node dist/cli.js scan --fixture node-cli --out .tmp/example --json .tmp/example/run-card.json
 ```
 
 ## Use
 
-Replace this section with the smallest useful example for the generated
-repository.
+Scan the current repository and write `RUN_CARD.md`:
 
 ```sh
-pnpm dev
+runcard scan
 ```
+
+Write both markdown and JSON to a chosen output directory:
+
+```sh
+runcard scan --root /path/to/repo --out /path/to/repo/.runcard --json /path/to/repo/.runcard/run-card.json
+```
+
+Smoke the bundled Node fixture:
+
+```sh
+runcard scan --fixture node-cli --out .tmp/smoke --json .tmp/smoke/run-card.json
+```
+
+## What It Detects
+
+- Node: `package.json`, package manager lockfiles, npm/pnpm/yarn/bun scripts.
+- Python: `pyproject.toml`, `requirements.txt`, `tox.ini`, `pytest.ini`, `noxfile.py`, ruff and pytest hints.
+- Rust: `Cargo.toml`, `Cargo.lock`, `cargo check`, `cargo test`.
+- Go: `go.mod`, `go.sum`, `go test ./...`, `go build ./...`.
+- Make: public Makefile targets.
+- Shell: `.sh` files and scripts under `scripts/`.
+
+Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`, `run`, and `other`. Missing test or smoke paths are flagged with suggestions because those gaps slow down agent handoffs.
 
 ## Verify
 
-Run the local validation script before opening a pull request:
-
 ```sh
-bash scripts/validate.sh
+npm run release:check
 ```
 
-`scripts/validate.sh` runs the repository's standard local checks when they are defined and will also run `agent-qc ready` when `agent-qc` is installed. Missing `agent-qc` is treated as a skip, not a failure.
+That runs typechecking, fixture-backed tests, the fixture smoke scan, and `npm pack --dry-run`.
+
+## Limitations
+
+- Detection is static and deterministic; runcard does not execute repository commands while scanning.
+- V1 ranking favors conventional file names and script names over deep framework inspection.
+- JSON schema is versioned as `schemaVersion: 1`, but should be treated as early until the first stable release.
+
+## Documentation
+
+- [Product requirements](docs/PRD.md)
+- [Implementation tasks](docs/TASKS.md)
+- [Factory orchestration](docs/ORCHESTRATION.md)
+- [Machine-readable orchestration](docs/orchestration.json)
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations. Changes
-should be small, reviewable, and verified before review.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations. Changes should be small, reviewable, and verified before review.
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting guidance. Replace
-the default security policy before publishing the generated repository.
-
-These links assume this README has been copied to the generated repository root.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting guidance.
 
 ## License
 

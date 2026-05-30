@@ -1,6 +1,6 @@
 # runcard PRD
 
-Status: in-progress
+Status: MVP implemented
 
 ## Summary
 
@@ -46,4 +46,3 @@ and scripts, but those clues need to be normalized into one reliable run card.
 - `runcard scan --fixture node-cli` produces a useful markdown run card.
 - Tests cover detection and ranking.
 - README makes the output practical for humans and agents.
-

@@ -1,0 +1,37 @@
+{
+  "project": "runcard",
+  "classification": "ship",
+  "mvp": {
+    "command": "runcard scan",
+    "outputs": [
+      "RUN_CARD.md",
+      "run-card.json"
+    ],
+    "detectors": [
+      "node",
+      "python",
+      "rust",
+      "go",
+      "make",
+      "shell",
+      "lockfiles"
+    ],
+    "rankedCategories": [
+      "install",
+      "check",
+      "test",
+      "build",
+      "smoke",
+      "package"
+    ]
+  },
+  "gates": [
+    "npm run release:check",
+    "releasebox check .",
+    "releasebox notes ."
+  ],
+  "releaseCandidate": {
+    "branch": "release-candidate/runcard",
+    "title": "Release candidate: runcard initial public build"
+  }
+}
