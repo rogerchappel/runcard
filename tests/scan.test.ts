@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { renderRunCard, scanRepo, writeScanResult } from '../src/index.js';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const fixtureRoot = path.join(repoRoot, 'fixtures');
+
+test('scan ranks Node CLI fixture commands deterministically', async () => {
+  const result = await scanRepo({
+    root: path.join(fixtureRoot, 'node-cli'),
+    now: new Date('2026-05-30T00:00:00.000Z')
+  });
+
+  assert.deepEqual(result.ecosystems, ['lockfile', 'node', 'shell']);
+  assert.equal(result.findings.length, 0);
+  assert.ok(result.commands.some((command) => command.category === 'install' && command.command === 'npm ci'));
+  assert.ok(result.commands.some((command) => command.category === 'check' && command.command === 'tsc --noEmit'));
+  assert.ok(result.commands.some((command) => command.category === 'test' && command.command === 'node --test'));
+  assert.ok(result.commands.some((command) => command.category === 'smoke' && command.command === 'node dist/cli.js --help'));
+  assert.ok(result.commands.some((command) => command.category === 'package' && command.command === 'npm pack --dry-run'));
+
+  const markdown = renderRunCard(result);
+  assert.match(markdown, /# RUN_CARD/);
+  assert.match(markdown, /Suggested Verification Order/);
+  assert.match(markdown, /`npm ci`/);
+});
+
+test('scan detects Python, Rust, Go, Make, and shell signals', async () => {
+  const result = await scanRepo({
+    root: path.join(fixtureRoot, 'polyglot'),
+    now: new Date('2026-05-30T00:00:00.000Z')
+  });
+
+  assert.deepEqual(result.ecosystems, ['go', 'make', 'python', 'rust', 'shell']);
+  assert.ok(result.commands.some((command) => command.command === 'python -m pytest'));
+  assert.ok(result.commands.some((command) => command.command === 'python -m ruff check .'));
+  assert.ok(result.commands.some((command) => command.command === 'cargo test'));
+  assert.ok(result.commands.some((command) => command.command === 'go test ./...'));
+  assert.ok(result.commands.some((command) => command.command === 'make smoke'));
+  assert.ok(result.commands.some((command) => command.command === 'bash scripts/smoke.sh'));
+});
+
+test('scan flags missing test and smoke paths', async () => {
+  const result = await scanRepo({
+    root: path.join(fixtureRoot, 'missing-paths'),
+    now: new Date('2026-05-30T00:00:00.000Z')
+  });
+
+  assert.deepEqual(
+    result.findings.map((finding) => finding.code),
+    ['missing-test-path', 'missing-smoke-path']
+  );
+});
+
+test('writeScanResult writes markdown and JSON outputs', async () => {
+  const result = await scanRepo({
+    root: path.join(fixtureRoot, 'node-cli'),
+    now: new Date('2026-05-30T00:00:00.000Z')
+  });
+  const outDir = await mkdtemp(path.join(tmpdir(), 'runcard-test-'));
+  const markdownPath = path.join(outDir, 'RUN_CARD.md');
+  const jsonPath = path.join(outDir, 'run-card.json');
+
+  await writeScanResult(result, { markdownPath, jsonPath });
+
+  const markdown = await readFile(markdownPath, 'utf8');
+  const json = JSON.parse(await readFile(jsonPath, 'utf8')) as { schemaVersion: number };
+  assert.match(markdown, /Repository: node-cli/);
+  assert.equal(json.schemaVersion, 1);
+});

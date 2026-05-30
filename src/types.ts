@@ -36,6 +36,7 @@ export interface RankedCommand {
   reason: string;
   confidence: number;
   source: string;
+  ecosystem?: Ecosystem;
 }
 
 export interface Finding {

@@ -1,0 +1,7 @@
+{
+  "name": "fixture-missing-paths",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  }
+}

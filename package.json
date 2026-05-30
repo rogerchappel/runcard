@@ -12,13 +12,15 @@
   },
   "files": [
     "dist",
+    "fixtures",
     "README.md"
   ],
   "scripts": {
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "pretest": "npm run build",
-    "test": "node --test dist/**/*.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/**/*.test.js",
     "smoke": "node dist/cli.js scan --fixture node-cli --out .tmp/smoke --json .tmp/smoke/run-card.json",
     "package:smoke": "npm pack --dry-run",
     "release:check": "npm run check && npm test && npm run smoke && npm run package:smoke"

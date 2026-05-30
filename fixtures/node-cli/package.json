@@ -1,0 +1,11 @@
+{
+  "name": "fixture-node-cli",
+  "private": true,
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test",
+    "build": "tsc",
+    "smoke": "node dist/cli.js --help",
+    "package:smoke": "npm pack --dry-run"
+  }
+}
