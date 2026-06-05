@@ -13,7 +13,8 @@
   "files": [
     "dist",
     "fixtures",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
@@ -40,5 +41,13 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rogerchappel/runcard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rogerchappel/runcard/issues"
+  },
+  "homepage": "https://github.com/rogerchappel/runcard#readme"
 }
