@@ -44,7 +44,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rogerchappel/runcard.git"
+    "url": "git+https://github.com/rogerchappel/runcard.git"
   },
   "bugs": {
     "url": "https://github.com/rogerchappel/runcard/issues"
