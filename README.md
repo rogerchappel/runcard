@@ -74,6 +74,10 @@ That release check runs typechecking, fixture-backed tests, the fixture smoke sc
 - [Factory orchestration](docs/ORCHESTRATION.md)
 - [Machine-readable orchestration](docs/orchestration.json)
 
+## Release readiness
+
+Use [docs/release-readiness.md](docs/release-readiness.md) before opening release PRs or tagging a release.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations. Changes should be small, reviewable, and verified before review.
