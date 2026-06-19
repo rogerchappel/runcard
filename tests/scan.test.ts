@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { renderRunCard, scanRepo, writeScanResult } from '../src/index.js';
 
+const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const fixtureRoot = path.join(repoRoot, 'fixtures');
 
@@ -71,4 +74,43 @@ test('writeScanResult writes markdown and JSON outputs', async () => {
   const json = JSON.parse(await readFile(jsonPath, 'utf8')) as { schemaVersion: number };
   assert.match(markdown, /Repository: node-cli/);
   assert.equal(json.schemaVersion, 1);
+});
+
+test('cli help documents fixture smoke and json output flags', async () => {
+  const { stdout, stderr } = await execFileAsync('node', ['dist/cli.js', '--help']);
+
+  assert.equal(stderr, '');
+  assert.match(stdout, /runcard scan/);
+  assert.match(stdout, /--fixture <name>/);
+  assert.match(stdout, /--json \[path\]/);
+});
+
+test('cli writes default JSON beside RUN_CARD when --json has no path', async () => {
+  const outDir = await mkdtemp(path.join(tmpdir(), 'runcard-cli-'));
+  const { stdout, stderr } = await execFileAsync('node', [
+    'dist/cli.js',
+    'scan',
+    '--fixture',
+    'node-cli',
+    '--out',
+    outDir,
+    '--json'
+  ]);
+
+  const markdown = await readFile(path.join(outDir, 'RUN_CARD.md'), 'utf8');
+  const json = JSON.parse(await readFile(path.join(outDir, 'run-card.json'), 'utf8')) as { schemaVersion: number; repo: { name: string } };
+
+  assert.equal(stderr, '');
+  assert.match(stdout, /Wrote .*RUN_CARD\.md/);
+  assert.match(stdout, /Wrote .*run-card\.json/);
+  assert.match(markdown, /Repository: node-cli/);
+  assert.equal(json.schemaVersion, 1);
+  assert.equal(json.repo.name, 'node-cli');
+});
+
+test('cli exits non-zero for unknown bundled fixtures', async () => {
+  await assert.rejects(
+    execFileAsync('node', ['dist/cli.js', 'scan', '--fixture', 'does-not-exist']),
+    /ENOENT|no such file/
+  );
 });

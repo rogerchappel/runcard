@@ -51,7 +51,13 @@ function parseArgs(argv: string[]): CliOptions {
     help: undefined
   };
   const args = [...argv];
-  options.command = args.shift();
+
+  if (args[0] === '--help' || args[0] === '-h') {
+    options.help = true;
+    args.shift();
+  } else {
+    options.command = args.shift();
+  }
 
   while (args.length > 0) {
     const arg = args.shift();
