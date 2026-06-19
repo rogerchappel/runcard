@@ -4,6 +4,7 @@ This directory holds project planning and release-readiness documentation.
 
 ## Contents
 
+- [Release readiness](release-readiness.md)
 - [Product requirements](PRD.md)
 - [Implementation tasks](TASKS.md)
 - [Factory orchestration](ORCHESTRATION.md)
