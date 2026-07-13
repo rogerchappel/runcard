@@ -13,7 +13,14 @@
   "files": [
     "dist",
     "fixtures",
-    "README.md"
+    "docs",
+    "README.md",
+    "SKILL.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "RELEASE_NOTES.md"
   ],
   "scripts": {
     "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",

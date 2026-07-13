@@ -38,6 +38,12 @@ Smoke the bundled Node fixture:
 runcard scan --fixture node-cli --out .tmp/smoke --json .tmp/smoke/run-card.json
 ```
 
+Gate a repository only when explicit test and smoke paths are present:
+
+```sh
+runcard scan --root /path/to/repo --fail-on-warnings
+```
+
 ## What It Detects
 
 - Node: `package.json`, package manager lockfiles, npm/pnpm/yarn/bun scripts.
@@ -69,6 +75,7 @@ That runs typechecking, fixture-backed tests, the fixture smoke scan, and `npm p
 - [Implementation tasks](docs/TASKS.md)
 - [Factory orchestration](docs/ORCHESTRATION.md)
 - [Machine-readable orchestration](docs/orchestration.json)
+- [Agent skill guide](SKILL.md)
 
 ## Contributing
 
