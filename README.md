@@ -58,10 +58,14 @@ Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`
 ## Verify
 
 ```sh
+npm run check
+npm test
+npm run smoke
+npm run package:smoke
 npm run release:check
 ```
 
-That runs typechecking, fixture-backed tests, the fixture smoke scan, and `npm pack --dry-run`.
+That release check runs typechecking, fixture-backed tests, the fixture smoke scan, and `npm pack --dry-run`.
 
 ## Limitations
 
@@ -77,6 +81,10 @@ That runs typechecking, fixture-backed tests, the fixture smoke scan, and `npm p
 - [Machine-readable orchestration](docs/orchestration.json)
 - [Agent skill guide](SKILL.md)
 
+## Release readiness
+
+Use [docs/release-readiness.md](docs/release-readiness.md) before opening release PRs or tagging a release.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations. Changes should be small, reviewable, and verified before review.
@@ -88,3 +96,18 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting guidance.
 ## License
 
 MIT
+
+## Verification
+
+Run the release-readiness checks before publishing or cutting a PR:
+
+```bash
+npm run check
+npm run build
+npm run test
+npm run smoke
+npm run package:smoke
+npm run release:check
+```
+
+Use `npm run package:smoke` or `npm pack --dry-run` to confirm the published tarball includes the support docs and runnable package contents.

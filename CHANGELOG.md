@@ -9,7 +9,14 @@ format and uses semantic versioning when versioned releases are published.
 
 ### Added
 
+- Added CLI release tests for top-level help, fixture-backed JSON output, and unknown fixture failures.
+- Added a release-readiness checklist for local verification and package review.
+
 - Initial project setup.
+
+### Fixed
+
+- Made top-level `runcard --help` exit successfully for package smoke checks and CLI discovery.
 
 ## Release Links
 
