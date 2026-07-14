@@ -9,6 +9,7 @@ interface CliOptions {
   fixture: string | undefined;
   out: string | undefined;
   json: string | undefined;
+  failOnWarnings: boolean;
   help: boolean | undefined;
 }
 
@@ -38,6 +39,9 @@ async function main(argv: string[]): Promise<void> {
   console.log(`Ranked commands: ${result.commands.length}`);
   if (warningCount > 0) {
     console.log(`Warnings: ${warningCount}`);
+    if (options.failOnWarnings) {
+      process.exitCode = 2;
+    }
   }
 }
 
@@ -48,6 +52,7 @@ function parseArgs(argv: string[]): CliOptions {
     fixture: undefined,
     out: undefined,
     json: undefined,
+    failOnWarnings: false,
     help: undefined
   };
   const args = [...argv];
@@ -76,6 +81,8 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === '--json') {
       const next = args[0];
       options.json = next && !next.startsWith('--') ? requireValue(arg, args.shift()) : '';
+    } else if (arg === '--fail-on-warnings') {
+      options.failOnWarnings = true;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -100,13 +107,14 @@ function printHelp(): void {
   console.log(`runcard
 
 Usage:
-  runcard scan [--root <path>] [--fixture <name>] [--out <dir>] [--json [path]]
+  runcard scan [--root <path>] [--fixture <name>] [--out <dir>] [--json [path]] [--fail-on-warnings]
 
 Options:
   --root <path>      Repository root to scan. Defaults to the current directory.
   --fixture <name>   Scan a bundled fixture, useful for smoke tests.
   --out <dir>        Directory for RUN_CARD.md. Defaults to the scanned root.
   --json [path]      Also write JSON. Defaults to <out>/run-card.json when no path is supplied.
+  --fail-on-warnings Exit 2 when the scan finds missing test or smoke paths.
 `);
 }
 

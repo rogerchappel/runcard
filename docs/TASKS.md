@@ -7,6 +7,7 @@
 - Rank install, check, test, build, smoke, and package commands.
 - Emit `RUN_CARD.md` and optional JSON.
 - Flag missing smoke and test paths.
+- Add `--fail-on-warnings` for CI or release gates that require explicit paths.
 - Add fixture-backed tests for Node and polyglot repositories.
 - Document CLI usage, verification, limitations, and release readiness.
 
