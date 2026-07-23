@@ -154,15 +154,16 @@ function install(command: string, source: string, ecosystem: Ecosystem, confiden
 }
 
 function rankScript(script: DetectedScript): RankedCommand {
-  const haystack = `${script.name} ${script.command}`;
-  if (/\bnpm\s+pack\b|\bpack\s+--dry-run\b/.test(script.command)) {
+  const haystack = `${script.name} ${script.scriptBody ?? script.command}`;
+  if (/\bnpm\s+pack\b|\bpack\s+--dry-run\b/.test(script.scriptBody ?? script.command)) {
     return {
       category: 'package',
       command: script.command,
       reason: 'script command creates or validates a package artifact',
       confidence: 88,
       source: script.source,
-      ecosystem: script.ecosystem
+      ecosystem: script.ecosystem,
+      ...scriptMetadata(script)
     };
   }
 
@@ -174,7 +175,8 @@ function rankScript(script: DetectedScript): RankedCommand {
         reason: rule.reason,
         confidence: rule.confidence,
         source: script.source,
-        ecosystem: script.ecosystem
+        ecosystem: script.ecosystem,
+        ...scriptMetadata(script)
       };
     }
   }
@@ -185,8 +187,13 @@ function rankScript(script: DetectedScript): RankedCommand {
     reason: 'detected script did not match a higher-confidence run-card category',
     confidence: 40,
     source: script.source,
-    ecosystem: script.ecosystem
+    ecosystem: script.ecosystem,
+    ...scriptMetadata(script)
   };
+}
+
+function scriptMetadata(script: DetectedScript): Pick<RankedCommand, 'scriptBody'> | Record<string, never> {
+  return script.scriptBody === undefined ? {} : { scriptBody: script.scriptBody };
 }
 
 function addCommand(commands: Map<string, RankedCommand>, command: RankedCommand): void {

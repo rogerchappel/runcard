@@ -26,6 +26,7 @@ export interface DetectedFile {
 export interface DetectedScript {
   name: string;
   command: string;
+  scriptBody?: string;
   source: string;
   ecosystem: Ecosystem;
 }
@@ -37,6 +38,7 @@ export interface RankedCommand {
   confidence: number;
   source: string;
   ecosystem?: Ecosystem;
+  scriptBody?: string;
 }
 
 export interface Finding {
@@ -47,7 +49,7 @@ export interface Finding {
 }
 
 export interface ScanResult {
-  schemaVersion: 1;
+  schemaVersion: 2;
   generatedAt: string;
   repo: {
     name: string;

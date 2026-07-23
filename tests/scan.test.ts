@@ -75,7 +75,7 @@ test('writeScanResult writes markdown and JSON outputs', async () => {
   const markdown = await readFile(markdownPath, 'utf8');
   const json = JSON.parse(await readFile(jsonPath, 'utf8')) as { schemaVersion: number };
   assert.match(markdown, /Repository: node-cli/);
-  assert.equal(json.schemaVersion, 1);
+  assert.equal(json.schemaVersion, 2);
 });
 
 test('cli help documents fixture smoke and json output flags', async () => {
@@ -106,7 +106,7 @@ test('cli writes default JSON beside RUN_CARD when --json has no path', async ()
   assert.match(stdout, /Wrote .*RUN_CARD\.md/);
   assert.match(stdout, /Wrote .*run-card\.json/);
   assert.match(markdown, /Repository: node-cli/);
-  assert.equal(json.schemaVersion, 1);
+  assert.equal(json.schemaVersion, 2);
   assert.equal(json.repo.name, 'node-cli');
 });
 
