@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdtemp, readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -61,6 +61,25 @@ test('suggested Node verification commands execute through npm in a clean shell'
       env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin` }
     });
   }
+});
+
+test('Node commands honor declared and lockfile package managers', async () => {
+  const declaredRoot = await mkdtemp(path.join(tmpdir(), 'runcard-declared-manager-'));
+  await writeFile(
+    path.join(declaredRoot, 'package.json'),
+    JSON.stringify({ packageManager: 'pnpm@10.0.0', scripts: { check: 'tsc --noEmit' } })
+  );
+  await writeFile(path.join(declaredRoot, 'package-lock.json'), '{}');
+
+  const declared = await scanRepo({ root: declaredRoot });
+  assert.ok(declared.commands.some((command) => command.command === 'pnpm run check'));
+
+  const lockfileRoot = await mkdtemp(path.join(tmpdir(), 'runcard-lockfile-manager-'));
+  await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc' } }));
+  await writeFile(path.join(lockfileRoot, 'yarn.lock'), '');
+
+  const lockfile = await scanRepo({ root: lockfileRoot });
+  assert.ok(lockfile.commands.some((command) => command.command === 'yarn run build'));
 });
 
 test('scan detects Python, Rust, Go, Make, and shell signals', async () => {
