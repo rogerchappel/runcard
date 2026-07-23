@@ -13,7 +13,7 @@ export async function scanRepo(options: ScanOptions): Promise<ScanResult> {
   const commands = rankCommands(detection.files, detection.scripts);
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: (options.now ?? new Date()).toISOString(),
     repo: {
       name: path.basename(root),

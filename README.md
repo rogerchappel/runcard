@@ -53,7 +53,7 @@ runcard scan --root /path/to/repo --fail-on-warnings
 - Make: public Makefile targets.
 - Shell: `.sh` files and scripts under `scripts/`.
 
-Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`, `run`, and `other`. Missing test or smoke paths are flagged with suggestions because those gaps slow down agent handoffs.
+Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`, `run`, and `other`. Node package scripts are rendered as executable package-manager commands such as `npm test` and `npm run build`; their original bodies remain available as `scriptBody` metadata in JSON. Missing test or smoke paths are flagged with suggestions because those gaps slow down agent handoffs.
 
 ## Verify
 
@@ -71,7 +71,7 @@ That release check runs typechecking, fixture-backed tests, the fixture smoke sc
 
 - Detection is static and deterministic; runcard does not execute repository commands while scanning.
 - V1 ranking favors conventional file names and script names over deep framework inspection.
-- JSON schema is versioned as `schemaVersion: 1`, but should be treated as early until the first stable release.
+- JSON schema is versioned as `schemaVersion: 2`. Version 2 makes Node script `command` values directly executable and preserves the manifest value in `scriptBody`.
 
 ## Documentation
 

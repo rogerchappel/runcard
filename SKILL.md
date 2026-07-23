@@ -13,6 +13,7 @@ Use this skill when an agent needs to discover how to install, check, test, buil
 1. Scan the repository with `runcard scan --root <repo> --out <repo>/.runcard --json <repo>/.runcard/run-card.json`.
 2. Read the generated `RUN_CARD.md` before running any project commands.
 3. Prefer high-confidence commands in install, check, test, build, smoke, and package order.
+   Node package scripts are emitted through their detected package manager so lifecycle hooks and local binaries work as they do under normal package-script execution.
 4. Use `--fail-on-warnings` in CI or release gates when missing test or smoke paths should block handoff.
 5. Include the run card path in PR or handoff notes.
 
@@ -21,6 +22,7 @@ Use this skill when an agent needs to discover how to install, check, test, buil
 - Scans read repository metadata and scripts.
 - Scans write markdown and optional JSON only to requested output paths.
 - runcard does not execute detected project commands.
+- JSON schema version 2 keeps raw Node manifest script bodies in `scriptBody` while `command` contains the executable package-manager invocation.
 
 ## Approval Boundaries
 

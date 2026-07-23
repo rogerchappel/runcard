@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -21,15 +21,65 @@ test('scan ranks Node CLI fixture commands deterministically', async () => {
   assert.deepEqual(result.ecosystems, ['lockfile', 'node', 'shell']);
   assert.equal(result.findings.length, 0);
   assert.ok(result.commands.some((command) => command.category === 'install' && command.command === 'npm ci'));
-  assert.ok(result.commands.some((command) => command.category === 'check' && command.command === 'tsc --noEmit'));
-  assert.ok(result.commands.some((command) => command.category === 'test' && command.command === 'node --test'));
-  assert.ok(result.commands.some((command) => command.category === 'smoke' && command.command === 'node dist/cli.js --help'));
-  assert.ok(result.commands.some((command) => command.category === 'package' && command.command === 'npm pack --dry-run'));
+  assert.ok(result.commands.some((command) => command.category === 'check' && command.command === 'npm run check'));
+  assert.ok(result.commands.some((command) => command.category === 'test' && command.command === 'npm test'));
+  assert.ok(result.commands.some((command) => command.category === 'build' && command.command === 'npm run build'));
+  assert.ok(result.commands.some((command) => command.category === 'smoke' && command.command === 'npm run smoke'));
+  assert.ok(result.commands.some((command) => command.category === 'package' && command.command === 'npm run package:smoke'));
+  assert.ok(result.scripts.some((script) => script.name === 'check' && script.scriptBody === 'tsc --noEmit'));
 
   const markdown = renderRunCard(result);
   assert.match(markdown, /# RUN_CARD/);
   assert.match(markdown, /Suggested Verification Order/);
   assert.match(markdown, /`npm ci`/);
+});
+
+test('suggested Node verification commands execute through npm in a clean shell', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'runcard-node-fixture-'));
+  const root = path.join(tempRoot, 'node-cli');
+  await cp(path.join(fixtureRoot, 'node-cli'), root, { recursive: true });
+
+  const result = await scanRepo({ root });
+  const commands = ['install', 'check', 'test', 'build', 'smoke', 'package']
+    .map((category) =>
+      result.commands.find((command) => command.category === category && command.ecosystem === 'node')?.command
+    )
+    .filter((command): command is string => command !== undefined);
+
+  assert.deepEqual(commands, [
+    'npm ci',
+    'npm run check',
+    'npm test',
+    'npm run build',
+    'npm run smoke',
+    'npm run package:smoke'
+  ]);
+
+  for (const command of commands) {
+    await execFileAsync('/bin/sh', ['-c', command], {
+      cwd: root,
+      env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin` }
+    });
+  }
+});
+
+test('Node commands honor declared and lockfile package managers', async () => {
+  const declaredRoot = await mkdtemp(path.join(tmpdir(), 'runcard-declared-manager-'));
+  await writeFile(
+    path.join(declaredRoot, 'package.json'),
+    JSON.stringify({ packageManager: 'pnpm@10.0.0', scripts: { check: 'tsc --noEmit' } })
+  );
+  await writeFile(path.join(declaredRoot, 'package-lock.json'), '{}');
+
+  const declared = await scanRepo({ root: declaredRoot });
+  assert.ok(declared.commands.some((command) => command.command === 'pnpm run check'));
+
+  const lockfileRoot = await mkdtemp(path.join(tmpdir(), 'runcard-lockfile-manager-'));
+  await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc' } }));
+  await writeFile(path.join(lockfileRoot, 'yarn.lock'), '');
+
+  const lockfile = await scanRepo({ root: lockfileRoot });
+  assert.ok(lockfile.commands.some((command) => command.command === 'yarn run build'));
 });
 
 test('scan detects Python, Rust, Go, Make, and shell signals', async () => {
@@ -73,7 +123,7 @@ test('writeScanResult writes markdown and JSON outputs', async () => {
   const markdown = await readFile(markdownPath, 'utf8');
   const json = JSON.parse(await readFile(jsonPath, 'utf8')) as { schemaVersion: number };
   assert.match(markdown, /Repository: node-cli/);
-  assert.equal(json.schemaVersion, 1);
+  assert.equal(json.schemaVersion, 2);
 });
 
 test('cli help documents fixture smoke and json output flags', async () => {
@@ -104,7 +154,7 @@ test('cli writes default JSON beside RUN_CARD when --json has no path', async ()
   assert.match(stdout, /Wrote .*RUN_CARD\.md/);
   assert.match(stdout, /Wrote .*run-card\.json/);
   assert.match(markdown, /Repository: node-cli/);
-  assert.equal(json.schemaVersion, 1);
+  assert.equal(json.schemaVersion, 2);
   assert.equal(json.repo.name, 'node-cli');
 });
 

@@ -66,9 +66,37 @@ async function addNode(
   files.push({ path: 'package.json', kind: 'node manifest', ecosystem: 'node' });
   const packageJson = await readJsonIfExists<PackageJson>(path.join(root, 'package.json'));
 
-  for (const [name, command] of Object.entries(packageJson?.scripts ?? {})) {
-    scripts.push({ name, command, source: `package.json#scripts.${name}`, ecosystem: 'node' });
+  const packageManager = nodePackageManager(packageJson?.packageManager, fileSet);
+  for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
+    scripts.push({
+      name,
+      command: nodeScriptCommand(packageManager, name),
+      scriptBody,
+      source: `package.json#scripts.${name}`,
+      ecosystem: 'node'
+    });
   }
+}
+
+function nodePackageManager(declared: string | undefined, fileSet: Set<string>): 'npm' | 'pnpm' | 'yarn' | 'bun' {
+  const name = declared?.split('@', 1)[0];
+  if (name === 'npm' || name === 'pnpm' || name === 'yarn' || name === 'bun') {
+    return name;
+  }
+  if (fileSet.has('pnpm-lock.yaml')) return 'pnpm';
+  if (fileSet.has('yarn.lock')) return 'yarn';
+  if (fileSet.has('bun.lock') || fileSet.has('bun.lockb')) return 'bun';
+  return 'npm';
+}
+
+function nodeScriptCommand(packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun', name: string): string {
+  if (packageManager === 'npm' && name === 'test') {
+    return 'npm test';
+  }
+  if (packageManager === 'npm' && name === 'start') {
+    return 'npm start';
+  }
+  return `${packageManager} run ${name}`;
 }
 
 async function addPython(
