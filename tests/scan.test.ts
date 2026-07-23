@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -32,6 +32,35 @@ test('scan ranks Node CLI fixture commands deterministically', async () => {
   assert.match(markdown, /# RUN_CARD/);
   assert.match(markdown, /Suggested Verification Order/);
   assert.match(markdown, /`npm ci`/);
+});
+
+test('suggested Node verification commands execute through npm in a clean shell', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'runcard-node-fixture-'));
+  const root = path.join(tempRoot, 'node-cli');
+  await cp(path.join(fixtureRoot, 'node-cli'), root, { recursive: true });
+
+  const result = await scanRepo({ root });
+  const commands = ['install', 'check', 'test', 'build', 'smoke', 'package']
+    .map((category) =>
+      result.commands.find((command) => command.category === category && command.ecosystem === 'node')?.command
+    )
+    .filter((command): command is string => command !== undefined);
+
+  assert.deepEqual(commands, [
+    'npm ci',
+    'npm run check',
+    'npm test',
+    'npm run build',
+    'npm run smoke',
+    'npm run package:smoke'
+  ]);
+
+  for (const command of commands) {
+    await execFileAsync('/bin/sh', ['-c', command], {
+      cwd: root,
+      env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin` }
+    });
+  }
 });
 
 test('scan detects Python, Rust, Go, Make, and shell signals', async () => {
