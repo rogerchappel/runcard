@@ -17,6 +17,7 @@ format and uses semantic versioning when versioned releases are published.
 ### Fixed
 
 - Made top-level `runcard --help` exit successfully for package smoke checks and CLI discovery.
+- Emit detected Node scripts as package-manager invocations so local binaries and lifecycle hooks work, while retaining raw manifest bodies as `scriptBody` metadata in JSON schema version 2.
 
 ## Release Links
 
