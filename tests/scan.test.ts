@@ -21,10 +21,12 @@ test('scan ranks Node CLI fixture commands deterministically', async () => {
   assert.deepEqual(result.ecosystems, ['lockfile', 'node', 'shell']);
   assert.equal(result.findings.length, 0);
   assert.ok(result.commands.some((command) => command.category === 'install' && command.command === 'npm ci'));
-  assert.ok(result.commands.some((command) => command.category === 'check' && command.command === 'tsc --noEmit'));
-  assert.ok(result.commands.some((command) => command.category === 'test' && command.command === 'node --test'));
-  assert.ok(result.commands.some((command) => command.category === 'smoke' && command.command === 'node dist/cli.js --help'));
-  assert.ok(result.commands.some((command) => command.category === 'package' && command.command === 'npm pack --dry-run'));
+  assert.ok(result.commands.some((command) => command.category === 'check' && command.command === 'npm run check'));
+  assert.ok(result.commands.some((command) => command.category === 'test' && command.command === 'npm test'));
+  assert.ok(result.commands.some((command) => command.category === 'build' && command.command === 'npm run build'));
+  assert.ok(result.commands.some((command) => command.category === 'smoke' && command.command === 'npm run smoke'));
+  assert.ok(result.commands.some((command) => command.category === 'package' && command.command === 'npm run package:smoke'));
+  assert.ok(result.scripts.some((script) => script.name === 'check' && script.scriptBody === 'tsc --noEmit'));
 
   const markdown = renderRunCard(result);
   assert.match(markdown, /# RUN_CARD/);
