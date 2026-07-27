@@ -55,6 +55,8 @@ runcard scan --root /path/to/repo --fail-on-warnings
 
 Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`, `run`, and `other`. Node package scripts are rendered as executable package-manager commands such as `npm test` and `npm run build`; their original bodies remain available as `scriptBody` metadata in JSON. Missing test or smoke paths are flagged with suggestions because those gaps slow down agent handoffs.
 
+For Node repositories, `package.json#packageManager` takes precedence over lockfiles; otherwise the detected lockfile selects the manager, falling back to npm. Install and script commands always use that one manager. A conflicting declaration or additional lockfile produces a `package-manager-conflict` warning naming the stale file.
+
 ## Verify
 
 ```sh
