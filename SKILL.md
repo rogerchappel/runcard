@@ -16,6 +16,7 @@ Use this skill when an agent needs to discover how to install, check, test, buil
    Node package scripts are emitted through their detected package manager so lifecycle hooks and local binaries work as they do under normal package-script execution.
 4. Use `--fail-on-warnings` in CI or release gates when missing test or smoke paths should block handoff.
 5. Include the run card path in PR or handoff notes.
+6. Resolve `package-manager-conflict` warnings before executing Node commands. The declared `packageManager` wins over lockfiles, and every suggested Node command uses that selected manager.
 
 ## Side Effects
 
