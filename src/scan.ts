@@ -10,7 +10,7 @@ export async function scanRepo(options: ScanOptions): Promise<ScanResult> {
   const root = path.resolve(options.root);
   const files = await listRepoFiles(root);
   const detection = await detectRepo(root, files);
-  const commands = rankCommands(detection.files, detection.scripts);
+  const commands = rankCommands(detection.files, detection.scripts, detection.nodePackageManager);
 
   return {
     schemaVersion: 2,
@@ -23,7 +23,7 @@ export async function scanRepo(options: ScanOptions): Promise<ScanResult> {
     files: detection.files,
     scripts: detection.scripts,
     commands,
-    findings: findingsFor(commands)
+    findings: findingsFor(commands, detection.nodePackageManager)
   };
 }
 

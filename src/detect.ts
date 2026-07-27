@@ -10,6 +10,15 @@ interface PackageJson {
 export interface DetectionResult {
   files: DetectedFile[];
   scripts: DetectedScript[];
+  nodePackageManager?: NodePackageManagerDetection;
+}
+
+export type NodePackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
+
+export interface NodePackageManagerDetection {
+  manager: NodePackageManager;
+  source: string;
+  conflictingLockfiles: string[];
 }
 
 const lockfileKinds: Record<string, string> = {
@@ -31,14 +40,14 @@ export async function detectRepo(root: string, repoFiles: string[]): Promise<Det
   const fileSet = new Set(repoFiles);
 
   addKnownFiles(files, fileSet);
-  await addNode(root, fileSet, files, scripts);
+  const nodePackageManager = await addNode(root, fileSet, files, scripts);
   await addPython(root, fileSet, files, scripts);
   await addRust(root, fileSet, files, scripts);
   await addGo(root, fileSet, files, scripts);
   await addMake(root, fileSet, files, scripts);
   await addShell(root, repoFiles, files, scripts);
 
-  return { files, scripts };
+  return { files, scripts, ...(nodePackageManager ? { nodePackageManager } : {}) };
 }
 
 export function ecosystemsFor(files: DetectedFile[], scripts: DetectedScript[]): Ecosystem[] {
@@ -58,9 +67,9 @@ async function addNode(
   fileSet: Set<string>,
   files: DetectedFile[],
   scripts: DetectedScript[]
-): Promise<void> {
+): Promise<NodePackageManagerDetection | undefined> {
   if (!fileSet.has('package.json')) {
-    return;
+    return undefined;
   }
 
   files.push({ path: 'package.json', kind: 'node manifest', ecosystem: 'node' });
@@ -70,26 +79,40 @@ async function addNode(
   for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
     scripts.push({
       name,
-      command: nodeScriptCommand(packageManager, name),
+      command: nodeScriptCommand(packageManager.manager, name),
       scriptBody,
       source: `package.json#scripts.${name}`,
       ecosystem: 'node'
     });
   }
+  return packageManager;
 }
 
-function nodePackageManager(declared: string | undefined, fileSet: Set<string>): 'npm' | 'pnpm' | 'yarn' | 'bun' {
+function nodePackageManager(declared: string | undefined, fileSet: Set<string>): NodePackageManagerDetection {
+  const lockfiles: Array<[string, NodePackageManager]> = [
+    ['package-lock.json', 'npm'],
+    ['pnpm-lock.yaml', 'pnpm'],
+    ['yarn.lock', 'yarn'],
+    [fileSet.has('bun.lock') ? 'bun.lock' : 'bun.lockb', 'bun']
+  ];
+  const presentLockfiles = lockfiles.filter(([file]) => fileSet.has(file));
   const name = declared?.split('@', 1)[0];
   if (name === 'npm' || name === 'pnpm' || name === 'yarn' || name === 'bun') {
-    return name;
+    return {
+      manager: name,
+      source: 'package.json#packageManager',
+      conflictingLockfiles: presentLockfiles.filter(([, manager]) => manager !== name).map(([file]) => file)
+    };
   }
-  if (fileSet.has('pnpm-lock.yaml')) return 'pnpm';
-  if (fileSet.has('yarn.lock')) return 'yarn';
-  if (fileSet.has('bun.lock') || fileSet.has('bun.lockb')) return 'bun';
-  return 'npm';
+  const [lockfile, manager] = presentLockfiles[0] ?? ['package.json', 'npm'];
+  return {
+    manager,
+    source: lockfile,
+    conflictingLockfiles: presentLockfiles.slice(1).map(([file]) => file)
+  };
 }
 
-function nodeScriptCommand(packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun', name: string): string {
+function nodeScriptCommand(packageManager: NodePackageManager, name: string): string {
   if (packageManager === 'npm' && name === 'test') {
     return 'npm test';
   }

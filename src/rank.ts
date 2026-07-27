@@ -1,4 +1,5 @@
 import type { CommandCategory, DetectedFile, DetectedScript, Ecosystem, Finding, RankedCommand } from './types.js';
+import type { NodePackageManagerDetection } from './detect.js';
 
 const categoryOrder: CommandCategory[] = ['install', 'check', 'test', 'build', 'smoke', 'package', 'run', 'other'];
 
@@ -52,10 +53,14 @@ const categoryPatterns: Array<{
   }
 ];
 
-export function rankCommands(files: DetectedFile[], scripts: DetectedScript[]): RankedCommand[] {
+export function rankCommands(
+  files: DetectedFile[],
+  scripts: DetectedScript[],
+  nodePackageManager?: NodePackageManagerDetection
+): RankedCommand[] {
   const commands = new Map<string, RankedCommand>();
 
-  for (const installCommand of installCommands(files)) {
+  for (const installCommand of installCommands(files, nodePackageManager)) {
     addCommand(commands, installCommand);
   }
 
@@ -78,9 +83,18 @@ export function rankCommands(files: DetectedFile[], scripts: DetectedScript[]): 
   });
 }
 
-export function findingsFor(commands: RankedCommand[]): Finding[] {
+export function findingsFor(commands: RankedCommand[], nodePackageManager?: NodePackageManagerDetection): Finding[] {
   const categories = new Set(commands.map((command) => command.category));
   const findings: Finding[] = [];
+
+  if (nodePackageManager?.conflictingLockfiles.length) {
+    findings.push({
+      level: 'warning',
+      code: 'package-manager-conflict',
+      message: `${nodePackageManager.source} selects ${nodePackageManager.manager}, but conflicting lockfiles were found: ${nodePackageManager.conflictingLockfiles.join(', ')}.`,
+      suggestion: `Remove the stale lockfile or update package.json#packageManager; commands consistently use ${nodePackageManager.manager}.`
+    });
+  }
 
   if (!categories.has('test')) {
     findings.push({
@@ -103,18 +117,21 @@ export function findingsFor(commands: RankedCommand[]): Finding[] {
   return findings;
 }
 
-function installCommands(files: DetectedFile[]): RankedCommand[] {
+function installCommands(
+  files: DetectedFile[],
+  nodePackageManager?: NodePackageManagerDetection
+): RankedCommand[] {
   const paths = new Set(files.map((file) => file.path));
   const commands: RankedCommand[] = [];
 
-  if (paths.has('package-lock.json')) {
+  if (nodePackageManager?.manager === 'npm' && paths.has('package-lock.json')) {
     commands.push(install('npm ci', 'package-lock.json', 'node', 95));
-  } else if (paths.has('pnpm-lock.yaml')) {
-    commands.push(install('pnpm install --frozen-lockfile', 'pnpm-lock.yaml', 'node', 95));
-  } else if (paths.has('yarn.lock')) {
-    commands.push(install('yarn install --frozen-lockfile', 'yarn.lock', 'node', 93));
-  } else if (paths.has('bun.lock') || paths.has('bun.lockb')) {
-    commands.push(install('bun install --frozen-lockfile', paths.has('bun.lock') ? 'bun.lock' : 'bun.lockb', 'node', 93));
+  } else if (nodePackageManager?.manager === 'pnpm') {
+    commands.push(install('pnpm install --frozen-lockfile', nodePackageManager.source, 'node', 95));
+  } else if (nodePackageManager?.manager === 'yarn') {
+    commands.push(install('yarn install --frozen-lockfile', nodePackageManager.source, 'node', 93));
+  } else if (nodePackageManager?.manager === 'bun') {
+    commands.push(install('bun install --frozen-lockfile', nodePackageManager.source, 'node', 93));
   } else if (paths.has('package.json')) {
     commands.push(install('npm install', 'package.json', 'node', 70));
   }
