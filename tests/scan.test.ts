@@ -63,23 +63,45 @@ test('suggested Node verification commands execute through npm in a clean shell'
   }
 });
 
-test('Node commands honor declared and lockfile package managers', async () => {
+test('Node commands consistently honor a declared package manager over a conflicting lockfile', async () => {
   const declaredRoot = await mkdtemp(path.join(tmpdir(), 'runcard-declared-manager-'));
   await writeFile(
     path.join(declaredRoot, 'package.json'),
-    JSON.stringify({ packageManager: 'pnpm@10.0.0', scripts: { check: 'tsc --noEmit' } })
+    JSON.stringify({ packageManager: 'pnpm@10.0.0', scripts: { check: 'tsc --noEmit', test: 'node --test' } })
   );
   await writeFile(path.join(declaredRoot, 'package-lock.json'), '{}');
 
   const declared = await scanRepo({ root: declaredRoot });
-  assert.ok(declared.commands.some((command) => command.command === 'pnpm run check'));
+  assert.deepEqual(
+    declared.commands.filter((command) => command.ecosystem === 'node').map((command) => command.command),
+    ['pnpm install --frozen-lockfile', 'pnpm run check', 'pnpm run test']
+  );
+  assert.equal(declared.commands.some((command) => command.command.startsWith('npm ')), false);
+  assert.equal(declared.findings.find((finding) => finding.code === 'package-manager-conflict')?.message,
+    'package.json#packageManager selects pnpm, but conflicting lockfiles were found: package-lock.json.');
+});
 
+test('Node commands use a matching lockfile manager when no manager is declared', async () => {
   const lockfileRoot = await mkdtemp(path.join(tmpdir(), 'runcard-lockfile-manager-'));
-  await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc' } }));
+  await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc', test: 'node --test' } }));
   await writeFile(path.join(lockfileRoot, 'yarn.lock'), '');
 
   const lockfile = await scanRepo({ root: lockfileRoot });
-  assert.ok(lockfile.commands.some((command) => command.command === 'yarn run build'));
+  assert.deepEqual(
+    lockfile.commands.filter((command) => command.ecosystem === 'node').map((command) => command.command),
+    ['yarn install --frozen-lockfile', 'yarn run test', 'yarn run build']
+  );
+  assert.equal(lockfile.findings.some((finding) => finding.code === 'package-manager-conflict'), false);
+});
+
+test('Node commands default coherently to npm without a declaration or lockfile', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-default-manager-'));
+  await writeFile(path.join(root, 'package.json'), JSON.stringify({ scripts: { check: 'tsc', test: 'node --test' } }));
+  const result = await scanRepo({ root });
+  assert.deepEqual(
+    result.commands.filter((command) => command.ecosystem === 'node').map((command) => command.command),
+    ['npm install', 'npm run check', 'npm test']
+  );
 });
 
 test('scan detects Python, Rust, Go, Make, and shell signals', async () => {
