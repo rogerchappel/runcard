@@ -9,6 +9,10 @@ format and uses semantic versioning when versioned releases are published.
 
 ### Added
 
+- Added packed-artifact installation and CLI execution to the package smoke check.
+- Added npm trusted publishing with provenance to tagged releases.
+- Clarified installation instructions while the first npm release is pending.
+- Preserved the `runcard` executable when npm publishes the package.
 - Added CLI release tests for top-level help, fixture-backed JSON output, and unknown fixture failures.
 - Added a release-readiness checklist for local verification and package review.
 
