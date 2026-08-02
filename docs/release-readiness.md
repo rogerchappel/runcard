@@ -15,7 +15,7 @@ npm run release:check
 
 ## Package contents
 
-Run `npm run package:smoke` when available and review the dry-run file list for only the built runtime, README, license, and other intentional release assets.
+Run `npm run package:smoke` to install the packed artifact in isolation and execute its CLI. Also review `npm publish --dry-run --access public` output for only the built runtime, README, license, and other intentional release assets.
 
 ## Notes
 

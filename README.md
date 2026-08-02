@@ -6,15 +6,18 @@ Generate deterministic local run cards for repositories.
 
 ## Install
 
+After the first npm release is published:
+
 ```sh
 npm install -g runcard
 ```
 
-For local development in this repository:
+Until then, install from a source checkout (this also supports local development):
 
 ```sh
 npm ci
 npm run build
+npm link
 node dist/cli.js scan --fixture node-cli --out .tmp/example --json .tmp/example/run-card.json
 ```
 
@@ -67,7 +70,7 @@ npm run package:smoke
 npm run release:check
 ```
 
-That release check runs typechecking, fixture-backed tests, the fixture smoke scan, and `npm pack --dry-run`.
+That release check runs typechecking, fixture-backed tests, the fixture smoke scan, then packs, installs, and executes the CLI from the resulting tarball.
 
 ## Limitations
 
@@ -112,4 +115,4 @@ npm run package:smoke
 npm run release:check
 ```
 
-Use `npm run package:smoke` or `npm pack --dry-run` to confirm the published tarball includes the support docs and runnable package contents.
+Use `npm run package:smoke` to pack the package, install the resulting tarball in an isolated directory, and execute its `runcard` binary.

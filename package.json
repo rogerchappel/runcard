@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "runcard": "./dist/cli.js"
+    "runcard": "dist/cli.js"
   },
   "exports": {
     ".": "./dist/index.js"
@@ -29,7 +29,7 @@
     "pretest": "npm run build",
     "test": "tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/**/*.test.js",
     "smoke": "node dist/cli.js scan --fixture node-cli --out .tmp/smoke --json .tmp/smoke/run-card.json",
-    "package:smoke": "npm pack --dry-run",
+    "package:smoke": "bash scripts/package-smoke.sh",
     "release:check": "npm run check && npm test && npm run smoke && npm run package:smoke"
   },
   "keywords": [
