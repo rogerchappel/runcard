@@ -2,7 +2,7 @@
 
 Generate deterministic local run cards for repositories.
 
-`runcard scan` inspects repository files, normalizes the likely install/check/test/build/smoke/package commands, and writes a compact handoff for humans and coding agents. It does not run project commands during a scan.
+`runcard scan` recursively inspects repository files, normalizes the likely install/check/test/build/smoke/package commands, and writes a compact handoff for humans and coding agents. It does not run project commands during a scan.
 
 ## Install
 
@@ -49,7 +49,7 @@ runcard scan --root /path/to/repo --fail-on-warnings
 
 ## What It Detects
 
-- Node: `package.json`, package manager lockfiles, npm/pnpm/yarn/bun scripts.
+- Node: root and nested `package.json` manifests, package manager lockfiles, and npm/pnpm/yarn/bun scripts. Nested package commands include an explicit working directory so they execute from the scanned root.
 - Python: `pyproject.toml`, `requirements.txt`, `tox.ini`, `pytest.ini`, `noxfile.py`, ruff and pytest hints.
 - Rust: `Cargo.toml`, `Cargo.lock`, `cargo check`, `cargo test`.
 - Go: `go.mod`, `go.sum`, `go test ./...`, `go build ./...`.
@@ -75,6 +75,7 @@ That release check runs typechecking, fixture-backed tests, the fixture smoke sc
 ## Limitations
 
 - Detection is static and deterministic; runcard does not execute repository commands while scanning.
+- Repository traversal has no depth cap. VCS metadata, dependency/vendor trees, build outputs, and language caches are excluded.
 - V1 ranking favors conventional file names and script names over deep framework inspection.
 - JSON schema is versioned as `schemaVersion: 2`. Version 2 makes Node script `command` values directly executable and preserves the manifest value in `scriptBody`.
 

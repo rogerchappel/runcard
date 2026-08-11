@@ -10,7 +10,7 @@ interface PackageJson {
 export interface DetectionResult {
   files: DetectedFile[];
   scripts: DetectedScript[];
-  nodePackageManager?: NodePackageManagerDetection;
+  nodePackageManagers: NodePackageManagerDetection[];
 }
 
 export type NodePackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
@@ -19,6 +19,7 @@ export interface NodePackageManagerDetection {
   manager: NodePackageManager;
   source: string;
   conflictingLockfiles: string[];
+  directory: string;
 }
 
 const lockfileKinds: Record<string, string> = {
@@ -40,14 +41,14 @@ export async function detectRepo(root: string, repoFiles: string[]): Promise<Det
   const fileSet = new Set(repoFiles);
 
   addKnownFiles(files, fileSet);
-  const nodePackageManager = await addNode(root, fileSet, files, scripts);
+  const nodePackageManagers = await addNode(root, fileSet, files, scripts);
   await addPython(root, fileSet, files, scripts);
   await addRust(root, fileSet, files, scripts);
   await addGo(root, fileSet, files, scripts);
   await addMake(root, fileSet, files, scripts);
   await addShell(root, repoFiles, files, scripts);
 
-  return { files, scripts, ...(nodePackageManager ? { nodePackageManager } : {}) };
+  return { files, scripts, nodePackageManagers };
 }
 
 export function ecosystemsFor(files: DetectedFile[], scripts: DetectedScript[]): Ecosystem[] {
@@ -67,28 +68,37 @@ async function addNode(
   fileSet: Set<string>,
   files: DetectedFile[],
   scripts: DetectedScript[]
-): Promise<NodePackageManagerDetection | undefined> {
-  if (!fileSet.has('package.json')) {
-    return undefined;
+): Promise<NodePackageManagerDetection[]> {
+  const manifests = Array.from(fileSet).filter((file) => path.basename(file) === 'package.json').sort();
+  const detections: NodePackageManagerDetection[] = [];
+  for (const manifest of manifests) {
+    const directory = path.posix.dirname(manifest) === '.' ? '' : path.posix.dirname(manifest);
+    const localFiles = new Set(
+      Array.from(fileSet)
+        .filter((file) => path.posix.dirname(file) === (directory || '.'))
+        .map((file) => path.basename(file))
+    );
+    files.push({ path: manifest, kind: 'node manifest', ecosystem: 'node' });
+    const packageJson = await readJsonIfExists<PackageJson>(path.join(root, manifest));
+    const packageManager = { ...nodePackageManager(packageJson?.packageManager, localFiles), directory };
+    detections.push(packageManager);
+    for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
+      scripts.push({
+        name,
+        command: nodeScriptCommand(packageManager.manager, name, directory),
+        scriptBody,
+        source: `${manifest}#scripts.${name}`,
+        ecosystem: 'node'
+      });
+    }
   }
-
-  files.push({ path: 'package.json', kind: 'node manifest', ecosystem: 'node' });
-  const packageJson = await readJsonIfExists<PackageJson>(path.join(root, 'package.json'));
-
-  const packageManager = nodePackageManager(packageJson?.packageManager, fileSet);
-  for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
-    scripts.push({
-      name,
-      command: nodeScriptCommand(packageManager.manager, name),
-      scriptBody,
-      source: `package.json#scripts.${name}`,
-      ecosystem: 'node'
-    });
-  }
-  return packageManager;
+  return detections;
 }
 
-function nodePackageManager(declared: string | undefined, fileSet: Set<string>): NodePackageManagerDetection {
+function nodePackageManager(
+  declared: string | undefined,
+  fileSet: Set<string>
+): Omit<NodePackageManagerDetection, 'directory'> {
   const lockfiles: Array<[string, NodePackageManager]> = [
     ['package-lock.json', 'npm'],
     ['pnpm-lock.yaml', 'pnpm'],
@@ -112,14 +122,19 @@ function nodePackageManager(declared: string | undefined, fileSet: Set<string>):
   };
 }
 
-function nodeScriptCommand(packageManager: NodePackageManager, name: string): string {
+function nodeScriptCommand(packageManager: NodePackageManager, name: string, directory: string): string {
+  const prefix = directory ? `cd ${shellQuote(directory)} && ` : '';
   if (packageManager === 'npm' && name === 'test') {
-    return 'npm test';
+    return `${prefix}npm test`;
   }
   if (packageManager === 'npm' && name === 'start') {
-    return 'npm start';
+    return `${prefix}npm start`;
   }
-  return `${packageManager} run ${name}`;
+  return `${prefix}${packageManager} run ${name}`;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 async function addPython(

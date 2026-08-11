@@ -8,6 +8,7 @@ const ignoredDirectories = new Set([
   'dist',
   'build',
   'target',
+  'vendor',
   'node_modules',
   '.venv',
   'venv',
@@ -47,14 +48,10 @@ export async function readJsonIfExists<T>(filePath: string): Promise<T | undefin
   return JSON.parse(text) as T;
 }
 
-export async function listRepoFiles(root: string, maxDepth = 3): Promise<string[]> {
+export async function listRepoFiles(root: string): Promise<string[]> {
   const files: string[] = [];
 
-  async function visit(directory: string, depth: number): Promise<void> {
-    if (depth > maxDepth) {
-      return;
-    }
-
+  async function visit(directory: string): Promise<void> {
     const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
       const absolutePath = path.join(directory, entry.name);
@@ -62,7 +59,7 @@ export async function listRepoFiles(root: string, maxDepth = 3): Promise<string[
 
       if (entry.isDirectory()) {
         if (!ignoredDirectories.has(entry.name)) {
-          await visit(absolutePath, depth + 1);
+          await visit(absolutePath);
         }
         continue;
       }
@@ -73,6 +70,6 @@ export async function listRepoFiles(root: string, maxDepth = 3): Promise<string[
     }
   }
 
-  await visit(root, 0);
+  await visit(root);
   return files.sort();
 }
