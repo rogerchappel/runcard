@@ -56,11 +56,11 @@ const categoryPatterns: Array<{
 export function rankCommands(
   files: DetectedFile[],
   scripts: DetectedScript[],
-  nodePackageManager?: NodePackageManagerDetection
+  nodePackageManagers: NodePackageManagerDetection[] = []
 ): RankedCommand[] {
   const commands = new Map<string, RankedCommand>();
 
-  for (const installCommand of installCommands(files, nodePackageManager)) {
+  for (const installCommand of installCommands(files, nodePackageManagers)) {
     addCommand(commands, installCommand);
   }
 
@@ -83,15 +83,16 @@ export function rankCommands(
   });
 }
 
-export function findingsFor(commands: RankedCommand[], nodePackageManager?: NodePackageManagerDetection): Finding[] {
+export function findingsFor(commands: RankedCommand[], nodePackageManagers: NodePackageManagerDetection[] = []): Finding[] {
   const categories = new Set(commands.map((command) => command.category));
   const findings: Finding[] = [];
 
-  if (nodePackageManager?.conflictingLockfiles.length) {
+  for (const nodePackageManager of nodePackageManagers.filter((manager) => manager.conflictingLockfiles.length)) {
+    const location = nodePackageManager.directory ? ` in ${nodePackageManager.directory}` : '';
     findings.push({
       level: 'warning',
       code: 'package-manager-conflict',
-      message: `${nodePackageManager.source} selects ${nodePackageManager.manager}, but conflicting lockfiles were found: ${nodePackageManager.conflictingLockfiles.join(', ')}.`,
+      message: `${nodePackageManager.source}${location} selects ${nodePackageManager.manager}, but conflicting lockfiles were found: ${nodePackageManager.conflictingLockfiles.join(', ')}.`,
       suggestion: `Remove the stale lockfile or update package.json#packageManager; commands consistently use ${nodePackageManager.manager}.`
     });
   }
@@ -119,21 +120,28 @@ export function findingsFor(commands: RankedCommand[], nodePackageManager?: Node
 
 function installCommands(
   files: DetectedFile[],
-  nodePackageManager?: NodePackageManagerDetection
+  nodePackageManagers: NodePackageManagerDetection[]
 ): RankedCommand[] {
   const paths = new Set(files.map((file) => file.path));
   const commands: RankedCommand[] = [];
 
-  if (nodePackageManager?.manager === 'npm' && paths.has('package-lock.json')) {
-    commands.push(install('npm ci', 'package-lock.json', 'node', 95));
-  } else if (nodePackageManager?.manager === 'pnpm') {
-    commands.push(install('pnpm install --frozen-lockfile', nodePackageManager.source, 'node', 95));
-  } else if (nodePackageManager?.manager === 'yarn') {
-    commands.push(install('yarn install --frozen-lockfile', nodePackageManager.source, 'node', 93));
-  } else if (nodePackageManager?.manager === 'bun') {
-    commands.push(install('bun install --frozen-lockfile', nodePackageManager.source, 'node', 93));
-  } else if (paths.has('package.json')) {
-    commands.push(install('npm install', 'package.json', 'node', 70));
+  for (const nodePackageManager of nodePackageManagers) {
+    const prefix = nodePackageManager.directory ? `cd '${nodePackageManager.directory.replaceAll("'", "'\\''")}' && ` : '';
+    const source = nodePackageManager.directory
+      ? `${nodePackageManager.directory}/${nodePackageManager.source}`
+      : nodePackageManager.source;
+    const localLock = nodePackageManager.source === 'package-lock.json';
+    if (nodePackageManager.manager === 'npm' && localLock) {
+      commands.push(install(`${prefix}npm ci`, source, 'node', 95));
+    } else if (nodePackageManager.manager === 'pnpm') {
+      commands.push(install(`${prefix}pnpm install --frozen-lockfile`, source, 'node', 95));
+    } else if (nodePackageManager.manager === 'yarn') {
+      commands.push(install(`${prefix}yarn install --frozen-lockfile`, source, 'node', 93));
+    } else if (nodePackageManager.manager === 'bun') {
+      commands.push(install(`${prefix}bun install --frozen-lockfile`, source, 'node', 93));
+    } else {
+      commands.push(install(`${prefix}npm install`, source, 'node', 70));
+    }
   }
 
   if (paths.has('uv.lock')) {
