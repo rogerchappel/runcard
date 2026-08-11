@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -129,6 +129,40 @@ test('scan flags missing test and smoke paths', async () => {
     result.findings.map((finding) => finding.code),
     ['missing-test-path', 'missing-smoke-path']
   );
+});
+
+test('scan discovers executable Node scripts in deeply nested monorepo packages', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-nested-monorepo-'));
+  const packageRoot = path.join(root, 'probe', 'a', 'b', 'c', 'service');
+  await mkdir(packageRoot, { recursive: true });
+  await writeFile(
+    path.join(packageRoot, 'package.json'),
+    JSON.stringify({ scripts: { test: 'node --test', smoke: 'node smoke.js' } })
+  );
+  await writeFile(path.join(packageRoot, 'package-lock.json'), '{}');
+
+  const result = await scanRepo({ root });
+
+  assert.deepEqual(result.ecosystems, ['node']);
+  assert.ok(result.files.some((file) => file.path === 'probe/a/b/c/service/package.json'));
+  assert.ok(result.commands.some((command) => command.command === "cd 'probe/a/b/c/service' && npm ci"));
+  assert.ok(result.commands.some((command) => command.command === "cd 'probe/a/b/c/service' && npm test"));
+  assert.ok(result.commands.some((command) => command.command === "cd 'probe/a/b/c/service' && npm run smoke"));
+  assert.equal(result.findings.some((finding) => finding.code === 'missing-test-path'), false);
+  assert.equal(result.findings.some((finding) => finding.code === 'missing-smoke-path'), false);
+});
+
+test('scan excludes deeply nested dependency and build directories', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-ignored-directories-'));
+  for (const ignored of ['node_modules', 'dist', 'build', 'vendor']) {
+    const packageRoot = path.join(root, 'apps', 'service', ignored, 'hidden');
+    await mkdir(packageRoot, { recursive: true });
+    await writeFile(path.join(packageRoot, 'package.json'), JSON.stringify({ scripts: { test: 'false' } }));
+  }
+
+  const result = await scanRepo({ root });
+  assert.deepEqual(result.ecosystems, []);
+  assert.equal(result.files.length, 0);
 });
 
 test('writeScanResult writes markdown and JSON outputs', async () => {
