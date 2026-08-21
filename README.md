@@ -60,6 +60,8 @@ Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`
 
 For Node repositories, `package.json#packageManager` takes precedence over lockfiles; otherwise the detected lockfile selects the manager, falling back to npm. Install and script commands always use that one manager. A conflicting declaration or additional lockfile produces a `package-manager-conflict` warning naming the stale file.
 
+If a root or nested `package.json` cannot be read or parsed, scanning stops with a non-zero exit. The diagnostic names the repository-relative manifest path and includes the underlying filesystem or JSON parse error so the manifest can be repaired before retrying.
+
 ## Verify
 
 ```sh

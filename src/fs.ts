@@ -39,13 +39,18 @@ export async function readTextIfExists(filePath: string): Promise<string | undef
   return readFile(filePath, 'utf8');
 }
 
-export async function readJsonIfExists<T>(filePath: string): Promise<T | undefined> {
-  const text = await readTextIfExists(filePath);
-  if (text === undefined) {
-    return undefined;
-  }
+export async function readJsonIfExists<T>(filePath: string, displayPath = filePath): Promise<T | undefined> {
+  try {
+    const text = await readTextIfExists(filePath);
+    if (text === undefined) {
+      return undefined;
+    }
 
-  return JSON.parse(text) as T;
+    return JSON.parse(text) as T;
+  } catch (error) {
+    const cause = error instanceof Error ? error : new Error(String(error));
+    throw new Error(`Failed to read JSON manifest ${displayPath}: ${cause.message}`, { cause });
+  }
 }
 
 export async function listRepoFiles(root: string): Promise<string[]> {

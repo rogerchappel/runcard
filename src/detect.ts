@@ -79,7 +79,7 @@ async function addNode(
         .map((file) => path.basename(file))
     );
     files.push({ path: manifest, kind: 'node manifest', ecosystem: 'node' });
-    const packageJson = await readJsonIfExists<PackageJson>(path.join(root, manifest));
+    const packageJson = await readJsonIfExists<PackageJson>(path.join(root, manifest), manifest);
     const packageManager = { ...nodePackageManager(packageJson?.packageManager, localFiles), directory };
     detections.push(packageManager);
     for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
