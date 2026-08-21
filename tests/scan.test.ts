@@ -152,6 +152,21 @@ test('scan discovers executable Node scripts in deeply nested monorepo packages'
   assert.equal(result.findings.some((finding) => finding.code === 'missing-smoke-path'), false);
 });
 
+test('scan identifies a malformed deeply nested Node manifest and preserves the parse cause', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-malformed-manifest-'));
+  const manifest = path.join(root, 'apps', 'api', 'packages', 'worker', 'package.json');
+  await mkdir(path.dirname(manifest), { recursive: true });
+  await writeFile(manifest, '{ invalid json');
+
+  await assert.rejects(scanRepo({ root }), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /^Failed to read JSON manifest apps\/api\/packages\/worker\/package\.json:/);
+    assert.match(error.message, /JSON|property|position/i);
+    assert.ok(error.cause instanceof SyntaxError);
+    return true;
+  });
+});
+
 test('scan excludes deeply nested dependency and build directories', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'runcard-ignored-directories-'));
   for (const ignored of ['node_modules', 'dist', 'build', 'vendor']) {
@@ -218,5 +233,23 @@ test('cli exits non-zero for unknown bundled fixtures', async () => {
   await assert.rejects(
     execFileAsync('node', ['dist/cli.js', 'scan', '--fixture', 'does-not-exist']),
     /ENOENT|no such file/
+  );
+});
+
+test('cli exits non-zero and names a malformed nested Node manifest', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-cli-malformed-'));
+  const manifest = path.join(root, 'services', 'deep', 'package.json');
+  await mkdir(path.dirname(manifest), { recursive: true });
+  await writeFile(manifest, '{ broken');
+
+  await assert.rejects(
+    execFileAsync('node', ['dist/cli.js', 'scan', '--root', root]),
+    (error: unknown) => {
+      assert.ok(error && typeof error === 'object' && 'code' in error && error.code !== 0);
+      assert.ok('stderr' in error && typeof error.stderr === 'string');
+      assert.match(error.stderr, /Failed to read JSON manifest services\/deep\/package\.json:/);
+      assert.match(error.stderr, /JSON|property|position/i);
+      return true;
+    }
   );
 });
