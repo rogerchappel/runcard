@@ -20,6 +20,7 @@ format and uses semantic versioning when versioned releases are published.
 
 ### Fixed
 
+- Run compiled tests through deterministic Node-based discovery so the advertised Node 20 minimum is supported and verified in CI alongside Node 24.
 - Made top-level `runcard --help` exit successfully for package smoke checks and CLI discovery.
 - Emit detected Node scripts as package-manager invocations so local binaries and lifecycle hooks work, while retaining raw manifest bodies as `scriptBody` metadata in JSON schema version 2.
 
