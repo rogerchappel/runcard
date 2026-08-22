@@ -119,6 +119,20 @@ test('scan detects Python, Rust, Go, Make, and shell signals', async () => {
   assert.ok(result.commands.some((command) => command.command === 'bash scripts/smoke.sh'));
 });
 
+test('generated shell commands quote paths and remain directly executable', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-shell-paths-'));
+  const scriptsDir = path.join(root, 'scripts');
+  await mkdir(scriptsDir, { recursive: true });
+  await writeFile(path.join(scriptsDir, "space and 'quote'.sh"), '#!/bin/sh\nprintf ready > marker.txt\n');
+
+  const result = await scanRepo({ root });
+  const command = result.commands.find((item) => item.source === "scripts/space and 'quote'.sh")?.command;
+
+  assert.equal(command, "bash 'scripts/space and '\\''quote'\\''.sh'");
+  await execFileAsync('/bin/sh', ['-c', command], { cwd: root });
+  assert.equal(await readFile(path.join(root, 'marker.txt'), 'utf8'), 'ready');
+});
+
 test('scan flags missing test and smoke paths', async () => {
   const result = await scanRepo({
     root: path.join(fixtureRoot, 'missing-paths'),
