@@ -54,7 +54,7 @@ runcard scan --root /path/to/repo --fail-on-warnings
 - Rust: `Cargo.toml`, `Cargo.lock`, `cargo check`, `cargo test`.
 - Go: `go.mod`, `go.sum`, `go test ./...`, `go build ./...`.
 - Make: public Makefile targets.
-- Shell: `.sh` files and scripts under `scripts/`.
+- Shell: `.sh` files and scripts under `scripts/`; generated commands quote paths when needed so they remain directly executable.
 
 Commands are ranked into `install`, `check`, `test`, `build`, `smoke`, `package`, `run`, and `other`. Node package scripts are rendered as executable package-manager commands such as `npm test` and `npm run build`; their original bodies remain available as `scriptBody` metadata in JSON. Missing test or smoke paths are flagged with suggestions because those gaps slow down agent handoffs.
 
