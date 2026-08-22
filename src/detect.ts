@@ -251,5 +251,7 @@ function pythonKind(filePath: string): string {
 }
 
 function shellCommand(filePath: string): string {
-  return filePath.startsWith('scripts/') ? `bash ${filePath}` : `./${filePath}`;
+  const executablePath = filePath.startsWith('scripts/') ? filePath : `./${filePath}`;
+  const quotedPath = /^[A-Za-z0-9_./-]+$/.test(executablePath) ? executablePath : shellQuote(executablePath);
+  return filePath.startsWith('scripts/') ? `bash ${quotedPath}` : quotedPath;
 }
