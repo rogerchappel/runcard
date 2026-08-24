@@ -80,6 +80,7 @@ That release check runs typechecking, fixture-backed tests, the fixture smoke sc
 - Repository traversal has no depth cap. VCS metadata, dependency/vendor trees, build outputs, and language caches are excluded.
 - V1 ranking favors conventional file names and script names over deep framework inspection.
 - JSON schema is versioned as `schemaVersion: 2`. Version 2 makes Node script `command` values directly executable and preserves the manifest value in `scriptBody`.
+- npm workspace packages inherit the owning root package manager and lockfile. RunCard emits one root `npm ci` and root-executable `npm --workspace '<path>' ...` commands instead of independent nested installs.
 
 ## Documentation
 

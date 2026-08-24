@@ -81,6 +81,24 @@ test('Node commands consistently honor a declared package manager over a conflic
     'package.json#packageManager selects pnpm, but conflicting lockfiles were found: package-lock.json.');
 });
 
+test('npm workspaces inherit the root manager and lockfile', async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'runcard-npm-workspace-'));
+  const root = path.join(tempRoot, 'npm-workspace');
+  await cp(path.join(fixtureRoot, 'npm-workspace'), root, { recursive: true });
+  const result = await scanRepo({ root });
+  const nodeCommands = result.commands.filter((command) => command.ecosystem === 'node');
+  assert.deepEqual(nodeCommands.map((command) => command.command), [
+    'npm ci',
+    'npm run check',
+    "npm --workspace 'packages/app' test"
+  ]);
+  assert.equal(nodeCommands.filter((command) => command.category === 'install').length, 1);
+  assert.equal(result.findings.some((finding) => finding.code === 'package-manager-conflict'), false);
+  for (const command of nodeCommands.map((command) => command.command)) {
+    await execFileAsync('/bin/sh', ['-c', command], { cwd: root, env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin` } });
+  }
+});
+
 test('Node commands use a matching lockfile manager when no manager is declared', async () => {
   const lockfileRoot = await mkdtemp(path.join(tmpdir(), 'runcard-lockfile-manager-'));
   await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc', test: 'node --test' } }));
