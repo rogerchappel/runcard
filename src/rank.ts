@@ -130,7 +130,8 @@ function installCommands(
     const source = nodePackageManager.directory
       ? `${nodePackageManager.directory}/${nodePackageManager.source}`
       : nodePackageManager.source;
-    const localLock = nodePackageManager.source === 'package-lock.json';
+    const localLock = nodePackageManager.source === 'package-lock.json' ||
+      (nodePackageManager.directory === '' && paths.has('package-lock.json'));
     if (nodePackageManager.manager === 'npm' && localLock) {
       commands.push(install(`${prefix}npm ci`, source, 'node', 95));
     } else if (nodePackageManager.manager === 'pnpm') {

@@ -5,6 +5,7 @@ import type { DetectedFile, DetectedScript, Ecosystem } from './types.js';
 interface PackageJson {
   scripts?: Record<string, string>;
   packageManager?: string;
+  workspaces?: string[] | { packages?: string[] };
 }
 
 export interface DetectionResult {
@@ -71,21 +72,31 @@ async function addNode(
 ): Promise<NodePackageManagerDetection[]> {
   const manifests = Array.from(fileSet).filter((file) => path.basename(file) === 'package.json').sort();
   const detections: NodePackageManagerDetection[] = [];
+  const packageJsonByManifest = new Map<string, PackageJson | undefined>();
+  for (const manifest of manifests) {
+    packageJsonByManifest.set(manifest, await readJsonIfExists<PackageJson>(path.join(root, manifest), manifest));
+  }
+  const rootPackageJson = packageJsonByManifest.get('package.json');
+  const rootWorkspaces = workspacePatterns(rootPackageJson?.workspaces);
+  const rootFiles = filesInDirectory(fileSet, '');
+  const rootPackageManager = nodePackageManager(rootPackageJson?.packageManager, rootFiles);
+
   for (const manifest of manifests) {
     const directory = path.posix.dirname(manifest) === '.' ? '' : path.posix.dirname(manifest);
-    const localFiles = new Set(
-      Array.from(fileSet)
-        .filter((file) => path.posix.dirname(file) === (directory || '.'))
-        .map((file) => path.basename(file))
-    );
+    const localFiles = filesInDirectory(fileSet, directory);
     files.push({ path: manifest, kind: 'node manifest', ecosystem: 'node' });
-    const packageJson = await readJsonIfExists<PackageJson>(path.join(root, manifest), manifest);
-    const packageManager = { ...nodePackageManager(packageJson?.packageManager, localFiles), directory };
-    detections.push(packageManager);
+    const packageJson = packageJsonByManifest.get(manifest);
+    const isRootWorkspace = directory !== '' && rootWorkspaces.some((pattern) => matchesWorkspace(directory, pattern));
+    const packageManager = isRootWorkspace
+      ? { ...rootPackageManager, directory: '' }
+      : { ...nodePackageManager(packageJson?.packageManager, localFiles), directory };
+    if (!isRootWorkspace || !detections.some((detection) => detection.directory === '')) {
+      detections.push(packageManager);
+    }
     for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
       scripts.push({
         name,
-        command: nodeScriptCommand(packageManager.manager, name, directory),
+        command: nodeScriptCommand(packageManager.manager, name, isRootWorkspace ? '' : directory, isRootWorkspace ? directory : undefined),
         scriptBody,
         source: `${manifest}#scripts.${name}`,
         ecosystem: 'node'
@@ -93,6 +104,23 @@ async function addNode(
     }
   }
   return detections;
+}
+
+function filesInDirectory(fileSet: Set<string>, directory: string): Set<string> {
+  return new Set(
+    Array.from(fileSet)
+      .filter((file) => path.posix.dirname(file) === (directory || '.'))
+      .map((file) => path.basename(file))
+  );
+}
+
+function workspacePatterns(workspaces: PackageJson['workspaces']): string[] {
+  return Array.isArray(workspaces) ? workspaces : workspaces?.packages ?? [];
+}
+
+function matchesWorkspace(directory: string, pattern: string): boolean {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replaceAll('**', '\u0000').replaceAll('*', '[^/]*').replaceAll('\u0000', '.*');
+  return new RegExp(`^${escaped.replace(/\/$/, '')}$`).test(directory);
 }
 
 function nodePackageManager(
@@ -122,15 +150,16 @@ function nodePackageManager(
   };
 }
 
-function nodeScriptCommand(packageManager: NodePackageManager, name: string, directory: string): string {
+function nodeScriptCommand(packageManager: NodePackageManager, name: string, directory: string, workspace?: string): string {
   const prefix = directory ? `cd ${shellQuote(directory)} && ` : '';
+  const workspaceOption = workspace ? ` --workspace ${shellQuote(workspace)}` : '';
   if (packageManager === 'npm' && name === 'test') {
-    return `${prefix}npm test`;
+    return `${prefix}npm${workspaceOption} test`;
   }
   if (packageManager === 'npm' && name === 'start') {
-    return `${prefix}npm start`;
+    return `${prefix}npm${workspaceOption} start`;
   }
-  return `${prefix}${packageManager} run ${name}`;
+  return `${prefix}${packageManager}${workspaceOption} run ${name}`;
 }
 
 function shellQuote(value: string): string {
