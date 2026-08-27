@@ -128,7 +128,9 @@ test('workspace commands use executable manager-specific selectors', async () =>
     const result = await scanRepo({ root });
     const command = result.commands.find((item) => item.category === 'test')?.command;
     assert.equal(command, testCase.command);
-    await execFileAsync('/bin/sh', ['-c', command!], { cwd: root });
+    const managerAvailable = await execFileAsync('/bin/sh', ['-c', `command -v ${testCase.manager}`])
+      .then(() => true, () => false);
+    if (managerAvailable) await execFileAsync('/bin/sh', ['-c', command!], { cwd: root });
   }
 });
 
