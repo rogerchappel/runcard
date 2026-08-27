@@ -3,6 +3,7 @@ import { readJsonIfExists, readTextIfExists } from './fs.js';
 import type { DetectedFile, DetectedScript, Ecosystem } from './types.js';
 
 interface PackageJson {
+  name?: string;
   scripts?: Record<string, string>;
   packageManager?: string;
   workspaces?: string[] | { packages?: string[] };
@@ -96,7 +97,13 @@ async function addNode(
     for (const [name, scriptBody] of Object.entries(packageJson?.scripts ?? {})) {
       scripts.push({
         name,
-        command: nodeScriptCommand(packageManager.manager, name, isRootWorkspace ? '' : directory, isRootWorkspace ? directory : undefined),
+        command: nodeScriptCommand(
+          packageManager.manager,
+          name,
+          isRootWorkspace ? '' : directory,
+          isRootWorkspace ? directory : undefined,
+          packageJson?.name
+        ),
         scriptBody,
         source: `${manifest}#scripts.${name}`,
         ecosystem: 'node'
@@ -150,8 +157,26 @@ function nodePackageManager(
   };
 }
 
-function nodeScriptCommand(packageManager: NodePackageManager, name: string, directory: string, workspace?: string): string {
+function nodeScriptCommand(
+  packageManager: NodePackageManager,
+  name: string,
+  directory: string,
+  workspace?: string,
+  workspaceName?: string
+): string {
   const prefix = directory ? `cd ${shellQuote(directory)} && ` : '';
+  if (workspace && packageManager === 'pnpm') {
+    return `pnpm --filter ${shellQuote(`./${workspace}`)} run ${name}`;
+  }
+  if (workspace && packageManager === 'yarn' && workspaceName) {
+    return `yarn workspace ${shellQuote(workspaceName)} run ${name}`;
+  }
+  if (workspace && packageManager === 'bun' && workspaceName) {
+    return `bun run --filter ${shellQuote(workspaceName)} ${name}`;
+  }
+  if (workspace && (packageManager === 'yarn' || packageManager === 'bun')) {
+    return `cd ${shellQuote(workspace)} && ${packageManager} run ${name}`;
+  }
   const workspaceOption = workspace ? ` --workspace ${shellQuote(workspace)}` : '';
   if (packageManager === 'npm' && name === 'test') {
     return `${prefix}npm${workspaceOption} test`;
