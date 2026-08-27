@@ -99,6 +99,39 @@ test('npm workspaces inherit the root manager and lockfile', async () => {
   }
 });
 
+test('workspace commands use executable manager-specific selectors', async () => {
+  const cases = [
+    { manager: 'npm', version: '11.5.2', extraFile: undefined, command: "npm --workspace 'packages/app' test" },
+    { manager: 'pnpm', version: '9.15.0', extraFile: 'pnpm-workspace.yaml', command: "pnpm --filter './packages/app' run test" },
+    { manager: 'yarn', version: '1.22.22', extraFile: undefined, command: "yarn workspace 'workspace-app' run test" },
+    { manager: 'bun', version: '1.3.13', extraFile: undefined, command: "bun run --filter 'workspace-app' test" }
+  ] as const;
+
+  for (const testCase of cases) {
+    const root = await mkdtemp(path.join(tmpdir(), `runcard-${testCase.manager}-workspace-`));
+    await mkdir(path.join(root, 'packages/app'), { recursive: true });
+    await writeFile(path.join(root, 'package.json'), JSON.stringify({
+      name: `${testCase.manager}-workspace-fixture`,
+      private: true,
+      packageManager: `${testCase.manager}@${testCase.version}`,
+      workspaces: ['packages/*']
+    }));
+    await writeFile(path.join(root, 'packages/app/package.json'), JSON.stringify({
+      name: 'workspace-app',
+      version: '1.0.0',
+      scripts: { test: 'node --test' }
+    }));
+    await writeFile(path.join(root, 'packages/app/index.test.js'),
+      "import assert from 'node:assert/strict'; import test from 'node:test'; test('runs', () => assert.ok(true));\n");
+    if (testCase.extraFile) await writeFile(path.join(root, testCase.extraFile), "packages:\n  - 'packages/*'\n");
+
+    const result = await scanRepo({ root });
+    const command = result.commands.find((item) => item.category === 'test')?.command;
+    assert.equal(command, testCase.command);
+    await execFileAsync('/bin/sh', ['-c', command!], { cwd: root });
+  }
+});
+
 test('Node commands use a matching lockfile manager when no manager is declared', async () => {
   const lockfileRoot = await mkdtemp(path.join(tmpdir(), 'runcard-lockfile-manager-'));
   await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc', test: 'node --test' } }));
