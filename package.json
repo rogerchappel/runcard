@@ -30,7 +30,8 @@
     "test": "tsc -p tsconfig.test.json && node scripts/run-compiled-tests.mjs",
     "smoke": "node dist/cli.js scan --fixture node-cli --out .tmp/smoke --json .tmp/smoke/run-card.json",
     "package:smoke": "bash scripts/package-smoke.sh",
-    "release:check": "npm run check && npm test && npm run smoke && npm run package:smoke"
+    "workflow:check": "node scripts/check-release-workflow.mjs",
+    "release:check": "npm run check && npm test && npm run smoke && npm run package:smoke && npm run workflow:check"
   },
   "keywords": [
     "cli",
