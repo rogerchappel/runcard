@@ -13,6 +13,8 @@ interface CliOptions {
   help: boolean | undefined;
 }
 
+const RECOGNIZED_OPTIONS = new Set(['--help', '-h', '--root', '--fixture', '--out', '--json', '--fail-on-warnings']);
+
 async function main(argv: string[]): Promise<void> {
   const options = parseArgs(argv);
 
@@ -97,7 +99,7 @@ function fixtureRoot(name: string): string {
 }
 
 function requireValue(flag: string, value: string | undefined): string {
-  if (!value) {
+  if (!value || RECOGNIZED_OPTIONS.has(value)) {
     throw new Error(`${flag} requires a value`);
   }
   return value;
