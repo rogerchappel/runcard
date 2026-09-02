@@ -47,6 +47,8 @@ Gate a repository only when explicit test and smoke paths are present:
 runcard scan --root /path/to/repo --fail-on-warnings
 ```
 
+`--root`, `--fixture`, and `--out` require a value. If another option follows one of these flags, runcard exits nonzero with a flag-specific `requires a value` error. `--json` remains optional-value: use it bare for the default JSON path or provide a path explicitly.
+
 ## What It Detects
 
 - Node: root and nested `package.json` manifests, package manager lockfiles, and npm/pnpm/yarn/bun scripts. Nested package commands include an explicit working directory so they execute from the scanned root.
