@@ -296,6 +296,26 @@ test('cli writes default JSON beside RUN_CARD when --json has no path', async ()
   assert.equal(json.repo.name, 'node-cli');
 });
 
+test('cli reports missing values when value-taking flags are followed by options', async () => {
+  const cases: Array<[string, string]> = [
+    ['--root', '--json'],
+    ['--fixture', '--out'],
+    ['--out', '--fail-on-warnings']
+  ];
+
+  for (const [flag, next] of cases) {
+    await assert.rejects(
+      execFileAsync('node', ['dist/cli.js', 'scan', flag, next]),
+      (error: unknown) => {
+        assert.ok(error && typeof error === 'object' && 'code' in error && error.code !== 0);
+        assert.ok('stderr' in error && typeof error.stderr === 'string');
+        assert.equal(error.stderr.trim(), `${flag} requires a value`);
+        return true;
+      }
+    );
+  }
+});
+
 test('cli exits non-zero for unknown bundled fixtures', async () => {
   await assert.rejects(
     execFileAsync('node', ['dist/cli.js', 'scan', '--fixture', 'does-not-exist']),
