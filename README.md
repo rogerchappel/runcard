@@ -82,7 +82,7 @@ That release check runs typechecking, fixture-backed tests, the fixture smoke sc
 - Repository traversal has no depth cap. VCS metadata, dependency/vendor trees, build outputs, and language caches are excluded.
 - V1 ranking favors conventional file names and script names over deep framework inspection.
 - JSON schema is versioned as `schemaVersion: 2`. Version 2 makes Node script `command` values directly executable and preserves the manifest value in `scriptBody`.
-- Workspace packages inherit the owning root package manager and lockfile, so RunCard emits one root install instead of independent nested installs. Script commands use each manager's executable workspace selector: npm uses the workspace path, pnpm uses a relative-path filter, and yarn/bun use the package name. Yarn or bun packages without a `name` fall back to an explicitly quoted `cd` command.
+- Workspace packages inherit the owning root package manager and lockfile, so RunCard emits one root install instead of independent nested installs. For pnpm roots, workspace membership may come from either `package.json#workspaces` or the block-form `packages` list in `pnpm-workspace.yaml`; static matching supports `*`, `**`, trailing slashes, and ordered `!` exclusions. Other YAML forms and advanced glob syntax are not expanded. Script commands use each manager's executable workspace selector: npm uses the workspace path, pnpm uses a relative-path filter, and yarn/bun use the package name. Yarn or bun packages without a `name` fall back to an explicitly quoted `cd` command.
 
 ## Documentation
 

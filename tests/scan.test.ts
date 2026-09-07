@@ -134,6 +134,41 @@ test('workspace commands use executable manager-specific selectors', async () =>
   }
 });
 
+test('pnpm-workspace.yaml alone declares pnpm workspace packages', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'runcard-pnpm-native-workspace-'));
+  await mkdir(path.join(root, 'packages/app'), { recursive: true });
+  await writeFile(path.join(root, 'package.json'), JSON.stringify({
+    private: true,
+    packageManager: 'pnpm@10.0.0'
+  }));
+  await writeFile(path.join(root, 'pnpm-lock.yaml'), "lockfileVersion: '9.0'\n");
+  await writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n");
+  await writeFile(path.join(root, 'packages/app/package.json'), JSON.stringify({
+    name: 'workspace-app',
+    version: '1.0.0',
+    scripts: { test: 'node --test' }
+  }));
+  await writeFile(path.join(root, 'packages/app/index.test.js'),
+    "import assert from 'node:assert/strict'; import test from 'node:test'; test('runs', () => assert.ok(true));\n");
+
+  const result = await scanRepo({ root });
+  const commands = result.commands
+    .filter((command) => command.ecosystem === 'node')
+    .map((command) => command.command);
+
+  assert.deepEqual(commands, [
+    'pnpm install --frozen-lockfile',
+    "pnpm --filter './packages/app' run test"
+  ]);
+  assert.equal(commands.some((command) => /(^|&& )npm(?: |$)/.test(command)), false);
+
+  const managerAvailable = await execFileAsync('/bin/sh', ['-c', 'command -v pnpm'])
+    .then(() => true, () => false);
+  if (managerAvailable) {
+    for (const command of commands) await execFileAsync('/bin/sh', ['-c', command], { cwd: root });
+  }
+});
+
 test('Node commands use a matching lockfile manager when no manager is declared', async () => {
   const lockfileRoot = await mkdtemp(path.join(tmpdir(), 'runcard-lockfile-manager-'));
   await writeFile(path.join(lockfileRoot, 'package.json'), JSON.stringify({ scripts: { build: 'tsc', test: 'node --test' } }));

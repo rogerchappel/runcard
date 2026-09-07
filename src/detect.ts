@@ -78,16 +78,22 @@ async function addNode(
     packageJsonByManifest.set(manifest, await readJsonIfExists<PackageJson>(path.join(root, manifest), manifest));
   }
   const rootPackageJson = packageJsonByManifest.get('package.json');
-  const rootWorkspaces = workspacePatterns(rootPackageJson?.workspaces);
   const rootFiles = filesInDirectory(fileSet, '');
   const rootPackageManager = nodePackageManager(rootPackageJson?.packageManager, rootFiles);
+  const pnpmWorkspace = rootPackageManager.manager === 'pnpm' && fileSet.has('pnpm-workspace.yaml')
+    ? await readTextIfExists(path.join(root, 'pnpm-workspace.yaml'))
+    : undefined;
+  const rootWorkspaces = [
+    ...workspacePatterns(rootPackageJson?.workspaces),
+    ...pnpmWorkspacePatterns(pnpmWorkspace)
+  ];
 
   for (const manifest of manifests) {
     const directory = path.posix.dirname(manifest) === '.' ? '' : path.posix.dirname(manifest);
     const localFiles = filesInDirectory(fileSet, directory);
     files.push({ path: manifest, kind: 'node manifest', ecosystem: 'node' });
     const packageJson = packageJsonByManifest.get(manifest);
-    const isRootWorkspace = directory !== '' && rootWorkspaces.some((pattern) => matchesWorkspace(directory, pattern));
+    const isRootWorkspace = directory !== '' && matchesWorkspacePatterns(directory, rootWorkspaces);
     const packageManager = isRootWorkspace
       ? { ...rootPackageManager, directory: '' }
       : { ...nodePackageManager(packageJson?.packageManager, localFiles), directory };
@@ -123,6 +129,38 @@ function filesInDirectory(fileSet: Set<string>, directory: string): Set<string> 
 
 function workspacePatterns(workspaces: PackageJson['workspaces']): string[] {
   return Array.isArray(workspaces) ? workspaces : workspaces?.packages ?? [];
+}
+
+function pnpmWorkspacePatterns(contents: string | undefined): string[] {
+  if (!contents) return [];
+  const patterns: string[] = [];
+  let packagesIndent: number | undefined;
+  for (const line of contents.split(/\r?\n/)) {
+    if (/^\s*(?:#.*)?$/.test(line)) continue;
+    const indent = line.match(/^\s*/)?.[0].length ?? 0;
+    if (packagesIndent === undefined) {
+      if (/^\s*packages\s*:\s*(?:#.*)?$/.test(line)) packagesIndent = indent;
+      continue;
+    }
+    if (indent <= packagesIndent) break;
+    const item = line.match(/^\s*-\s*(.+?)\s*(?:#.*)?$/)?.[1];
+    if (!item) continue;
+    const unquoted = item.match(/^(['"])(.*)\1$/)?.[2] ?? item;
+    if (unquoted) patterns.push(unquoted);
+  }
+  return patterns;
+}
+
+function matchesWorkspacePatterns(directory: string, patterns: string[]): boolean {
+  let included = false;
+  for (const pattern of patterns) {
+    if (pattern.startsWith('!')) {
+      if (matchesWorkspace(directory, pattern.slice(1))) included = false;
+    } else if (matchesWorkspace(directory, pattern)) {
+      included = true;
+    }
+  }
+  return included;
 }
 
 function matchesWorkspace(directory: string, pattern: string): boolean {
