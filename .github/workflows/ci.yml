@@ -57,20 +57,62 @@ jobs:
             exit 1
           fi
 
-      - name: Run optional Node checks
+  type-check:
+    name: Type checking
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
         run: |
-          set -euo pipefail
-
-          if [ ! -f package.json ]; then
-            echo "No package.json found; skipping Node checks."
-            echo "Package verification is configured through package scripts when package.json is present."
-            exit 0
-          fi
-
           if [ -f package-lock.json ]; then
             npm ci
           else
             npm install
           fi
 
-          npm run release:check
+      - name: Verify TypeScript types (--noEmit)
+        run: npx tsc --noEmit
+
+      - name: Verify TypeScript types (test tsconfig --noEmit)
+        run: npx tsc -p tsconfig.test.json --noEmit
+
+  node-tests:
+    name: Build, test, smoke & package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Smoke test
+        run: npm run smoke
+
+      - name: Package smoke (dry-run pack)
+        run: npm run package:smoke
