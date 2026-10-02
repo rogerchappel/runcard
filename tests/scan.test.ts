@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -280,6 +280,28 @@ test('scan excludes deeply nested dependency and build directories', async () =>
   const result = await scanRepo({ root });
   assert.deepEqual(result.ecosystems, []);
   assert.equal(result.files.length, 0);
+});
+
+test('scan follows in-root symlinks but skips cycles, dangling links, and links outside root', async () => {
+  const parent = await mkdtemp(path.join(tmpdir(), 'runcard-symlinks-'));
+  const root = path.join(parent, 'repo');
+  const outside = path.join(parent, 'outside.txt');
+  await mkdir(path.join(root, 'real-dir'), { recursive: true });
+  await writeFile(path.join(root, 'real-dir', 'package.json'), JSON.stringify({ scripts: { test: 'node --test' } }));
+  await writeFile(outside, 'outside');
+  await symlink('real-dir/package.json', path.join(root, 'linked-package.json'));
+  await symlink('real-dir', path.join(root, 'linked-dir'));
+  await symlink('.', path.join(root, 'real-dir', 'cycle'));
+  await symlink(outside, path.join(root, 'outside-link'));
+  await symlink('missing', path.join(root, 'dangling'));
+
+  const result = await scanRepo({ root });
+  const listedFiles = await (await import('../src/fs.js')).listRepoFiles(root);
+  assert.ok(listedFiles.includes('linked-package.json'));
+  assert.ok(listedFiles.includes('linked-dir/package.json'));
+  assert.equal(listedFiles.some((file) => file.includes('/cycle/')), false);
+  assert.equal(listedFiles.includes('outside-link'), false);
+  assert.equal(listedFiles.includes('dangling'), false);
 });
 
 test('writeScanResult writes markdown and JSON outputs', async () => {

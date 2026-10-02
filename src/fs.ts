@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const ignoredDirectories = new Set([
@@ -55,8 +55,10 @@ export async function readJsonIfExists<T>(filePath: string, displayPath = filePa
 
 export async function listRepoFiles(root: string): Promise<string[]> {
   const files: string[] = [];
+  const rootRealPath = await realpath(root);
+  const isWithinRoot = (target: string): boolean => target === rootRealPath || target.startsWith(`${rootRealPath}${path.sep}`);
 
-  async function visit(directory: string): Promise<void> {
+  async function visit(directory: string, ancestors: Set<string>): Promise<void> {
     const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
       const absolutePath = path.join(directory, entry.name);
@@ -64,17 +66,44 @@ export async function listRepoFiles(root: string): Promise<string[]> {
 
       if (entry.isDirectory()) {
         if (!ignoredDirectories.has(entry.name)) {
-          await visit(absolutePath);
+          const target = await realpath(absolutePath);
+          if (!ancestors.has(target)) {
+            const nextAncestors = new Set(ancestors);
+            nextAncestors.add(target);
+            await visit(absolutePath, nextAncestors);
+          }
         }
         continue;
       }
 
       if (entry.isFile()) {
         files.push(relativePath);
+        continue;
+      }
+
+      if (!entry.isSymbolicLink()) continue;
+
+      let target: string;
+      try {
+        target = await realpath(absolutePath);
+      } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error &&
+            (error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP')) continue;
+        throw error;
+      }
+      if (!isWithinRoot(target)) continue;
+
+      const targetStat = await stat(absolutePath);
+      if (targetStat.isFile()) {
+        files.push(relativePath);
+      } else if (targetStat.isDirectory() && !ignoredDirectories.has(entry.name) && !ancestors.has(target)) {
+        const nextAncestors = new Set(ancestors);
+        nextAncestors.add(target);
+        await visit(absolutePath, nextAncestors);
       }
     }
   }
 
-  await visit(root);
+  await visit(root, new Set([rootRealPath]));
   return files.sort();
 }
